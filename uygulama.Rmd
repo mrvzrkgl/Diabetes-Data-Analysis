@@ -1,0 +1,723 @@
+---
+title: "**Diabetes Data Analysis**"
+author: "Merve Zirekğlu"
+date: "2023-10-22"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    number_sections: true
+    smooth_scroll: false
+  rmdformats::material:
+    highlight: tango
+  warning: false
+---
+
+
+# **Önsöz**
+
+Bu çalışma Kaggle'dan alınan DiabetesDataAnalysis(*) adlı veri seti ile hazırlanmıştır.
+
+
+(*) <https://www.kaggle.com/datasets/aemyjutt/diabetesdataanslysis/data>
+
+
+# **Veri Tanımı**
+
+Verimizi import edelim.
+
+```{r}
+diabetes <- read.csv("diabetes.csv")
+View(diabetes)
+```
+
+
+```{r}
+nrow(diabetes)
+ncol(diabetes)
+```
+
+Veri seti 9 değişken ve 768 gözlem içermektedir.
+
+
+# **Veri Seti İncelemesi**
+
+```{r}
+str(diabetes)
+```
+
+**Pregnancies:** Hamile kalma sayısı.
+
+**Glucose:** Şeker seviyesi.
+
+**BloodPressure:** Kan basıncı (mm/Hg).
+
+**SkinThickness:** Cilt kalınlığı (mm).
+
+**Insulin:** İnsülin değeri (2 saatlik serum insülini)
+
+**BMI:** Vücut kitle indeksi (kg/(boy)^2)
+
+**DiabetesPedigreeFunction:** Diyabet soyağacı işlevi (aile geçmişine dayalı olarak diyabet olasılığını puanlayan bir işlev).
+
+**Age:** Yaş
+
+**Outcome:** Sonuç (0: Diyabeti yok, 1: Diyabeti var.)
+
+
+
+
+
+## **Eksik Değer Kontrolü**
+
+
+Eksik gözlemleri kontrol edelim.
+
+
+```{r warning = FALSE}
+colSums(is.na(diabetes))
+```
+
+Veri setinde eksik gözlem yokmuş gibi görünüyor. Ancak bazı gözlemlerde "0" yer alıyor olabilir. Bu durumu inceleyelim.
+
+*Pregnancies Değişkeni*
+
+Doğum bilgisini içeren bu değişkende "0" yer alması anormal bir durum olarak düşünülmez. Bu sebeple 0'lar incelenmeyecektir.
+
+*Glucose Değişkeni*
+
+Şeker hastalarında Glucose değeri, normal bireylerden farklılık gösterebileceği için bu değişkende de "0"lar incelenmeyecektir.
+
+
+
+*BloodPressure Değişkeni*
+
+```{r}
+zeroBloodPressure <- diabetes$BloodPressure == 0
+
+diabetes[zeroBloodPressure, ]
+```
+
+
+BloodPressure değerleri 0 yazan gözlemler tespit edilmiştir.
+
+
+*SkinThickness Değişkeni*
+
+```{r}
+zeroSkinThickness <- diabetes$SkinThickness == 0
+
+diabetes[zeroSkinThickness, ]
+```
+
+
+SkinThickness değerleri 0 yazan gözlemler tespit edilmiştir.
+
+
+*Insulin Değişkeni*
+
+Şeker hastalarında Insulin değeri, normal bireylerden farklılık gösterebileceği için bu değişkende de "0"lar incelenmeyecektir.
+
+
+*BMI Değişkeni*
+
+```{r}
+zeroBMI <- diabetes$BMI == 0
+
+diabetes[zeroBMI, ]
+```
+
+
+BMI değerleri 0 yazan gözlemler tespit edilmiştir. 
+
+
+*DiabetesPedigreeFunction Değişkeni*
+
+
+```{r}
+zeroDiabetesPedigreeFunction <- diabetes$DiabetesPedigreeFunction == 0
+
+diabetes[zeroDiabetesPedigreeFunction, ]
+```
+
+DiabetesPedigreeFunction değerleri 0 yazan gözlemler tespit edilmemiştir.
+
+
+*Age Değişkeni*
+
+
+```{r}
+zeroAge <- diabetes$Age == 0
+
+diabetes[zeroAge, ]
+```
+
+Age değerleri 0 yazan gözlemler tespit edilmemiştir.
+
+
+
+## **Eksik Değer Doldurma**
+
+BloodPressure, SkinThickness, BMI değişkenlerinde "0" değerleri tespit edilmiştir. İlgili değişkenler, 0 sayısını normal şartlar altında içermeyeceğinden ötürü, eksik değer doldurma işlemi yapılacaktır.
+
+
+**BloodPressure Değişkeni**
+
+BloodPressure değişkeni nicel değişken olduğu için Regresyon Yöntemi ile eksik değerler doldurulacaktır.
+
+Öncelikle 0 yazan BloodPressure değerleri "NA" olarak değiştirilmeli;
+
+```{r}
+diabetes$BloodPressure[diabetes$BloodPressure == 0] <- NA
+```
+
+
+Eksik değerlerin doldurulması:
+
+```{r warning = FALSE}
+library(Hmisc)
+impute_arg <- aregImpute(BloodPressure ~ Pregnancies + Glucose + BMI + SkinThickness + Insulin + DiabetesPedigreeFunction + Age + Outcome,
+                         data = diabetes, n.impute = 1)
+
+imputed_BloodPressure <- impute_arg$imputed$BloodPressure 
+
+rows_with_missing_BloodPressure <- which(is.na(diabetes$BloodPressure))
+
+diabetes$BloodPressure[rows_with_missing_BloodPressure] <- imputed_BloodPressure
+```
+
+
+
+**SkinThickness Değişkeni**
+
+SkinThickness değişkeni nicel değişken olduğu için Regresyon Yöntemi ile eksik değerler doldurulacaktır.
+
+Öncelikle 0 yazan SkinThickness değerleri "NA" olarak değiştirilmeli;
+
+```{r}
+diabetes$SkinThickness[diabetes$SkinThickness == 0] <- NA
+```
+
+
+Eksik değerlerin doldurulması:
+
+```{r warning = FALSE}
+library(Hmisc)
+impute_arg <- aregImpute(SkinThickness ~ Pregnancies + Glucose + BMI + BloodPressure + Insulin + DiabetesPedigreeFunction + Age + Outcome,
+                         data = diabetes, n.impute = 1)
+
+imputed_SkinThickness <- impute_arg$imputed$SkinThickness 
+
+rows_with_missing_SkinThickness <- which(is.na(diabetes$SkinThickness))
+
+diabetes$SkinThickness[rows_with_missing_SkinThickness] <- imputed_SkinThickness
+```
+
+
+
+**BMI Değişkeni**
+
+BMI değişkeni nicel değişken olduğu için Regresyon Yöntemi ile eksik değerler doldurulacaktır.
+
+Öncelikle 0 yazan BMI değerleri "NA" olarak değiştirilmeli;
+
+```{r}
+diabetes$BMI[diabetes$BMI == 0] <- NA
+```
+
+
+Eksik değerlerin doldurulması:
+
+```{r warning = FALSE}
+library(Hmisc)
+impute_arg <- aregImpute(BMI ~ Pregnancies + Glucose + BloodPressure + SkinThickness + Insulin + DiabetesPedigreeFunction + Age + Outcome,
+                         data = diabetes, n.impute = 1)
+
+imputed_BMI <- impute_arg$imputed$BMI 
+
+rows_with_missing_BMI <- which(is.na(diabetes$BMI))
+
+diabetes$BMI[rows_with_missing_BMI] <- imputed_BMI
+```
+
+
+3 değişkenin eksik değerleri, Regresyon Yöntemi ile dolduruldu. Kontrol edelim;
+
+
+*BloodPressure Değişkeni*
+
+```{r}
+zeroBloodPressure <- diabetes$BloodPressure == 0
+
+diabetes[zeroBloodPressure, ]
+```
+
+*SkinThickness Değişkeni*
+
+```{r}
+zeroSkinThickness <- diabetes$SkinThickness == 0
+
+diabetes[zeroSkinThickness, ]
+```
+
+
+*BMI Değişkeni*
+
+```{r}
+zeroBMI <- diabetes$BMI == 0
+
+diabetes[zeroBMI, ]
+```
+
+
+Eksik değer doldurma işlemi tamamlandı.
+
+
+# **Uygulama**
+
+## **Bağımlı Değişken Ağırlık Kontrolü**
+
+
+Outcome değişkeni bağımlı değişkendir. Ancak bağımlı değişkenin frekanslarına ve oranlarına bakıldığında uzaklık tespit edilmektedir. Diyabeti olmayanların oranı %35 iken diyabeti olanların oranı %65'dir.
+
+
+```{r}
+frekans_tablosu <- table(diabetes$Outcome)
+
+oranlar <- prop.table(frekans_tablosu)
+
+sonuc <- data.frame(Kategori = names(frekans_tablosu), Frekanslar = as.numeric(frekans_tablosu), Oranlar = as.numeric(oranlar))
+sonuc
+```
+
+Değişkenin ağırlığını birbirine yaklaştırmak için örneklem seçelim.
+
+
+```{r}
+library(dplyr)
+
+# Outcome değeri 1 olanların sayısı
+n_outcome_1 <- sum(diabetes$Outcome == 1)
+
+# Yeni Outcome değeri 1 olanların sayısı (268 olacak)
+n_new_outcome_1 <- 268
+
+# Yeni Outcome değeri 0 olanların sayısı (402 olacak)
+n_new_outcome_0 <- 402
+
+# Rasgele örneklemleri oluşturun
+set.seed(123)
+diabetes <- diabetes %>%
+  filter(Outcome == 1) %>%
+  slice_sample(n = n_new_outcome_1) %>%
+  bind_rows(diabetes %>%
+              filter(Outcome == 0) %>%
+              slice_sample(n = n_new_outcome_0))
+```
+
+
+
+Veri setinin yeni gözlem sayısı:
+
+```{r}
+nrow(diabetes)
+```
+
+
+Frekans ve oranlar yeniden incelenirse;
+
+```{r}
+frekans_tablosu <- table(diabetes$Outcome)
+
+oranlar <- prop.table(frekans_tablosu)
+
+sonuc <- data.frame(Kategori = names(frekans_tablosu), Frekanslar = as.numeric(frekans_tablosu), Oranlar = as.numeric(oranlar))
+sonuc
+```
+
+
+
+Bağımlı değişken çıktı sonuçları birbirine yaklaştı. Oranlar ise Diyabeti olmayanlar için %60 ve Diyabeti olanlar için %40 şeklinde belirlendi.
+
+
+
+## **Kategorik Değişkenleri Belirleme**
+
+
+Veri setinde yer alan Insulin, BMI ve Outcome değişkenlerini kategorik değişkenlere çevirelim.
+
+**Insulin Değişkeni:**
+
+"Öğün başlangıcından 2 saat sonra kan şekerinin ölçülmesi sonucunda kan glukoz seviyesinin 200 mg/Dl'nin üzerinde olması diyabet hastalığının, 140-199 mg/Dl aralığında olması gizli şeker adı verilen pre-diyabet döneminin göstergesidir." **[1]**
+
+Bu anlamda, Insulin değeri 140'dan az olanlara düşük, 140-199 olanlara gizli şeker, 199'dan fazla olanlara şeker yazalım.
+
+```{r warning = FALSE}
+diabetes$Insulin <- ifelse(diabetes$Insulin < 140, "Normal", 
+                            ifelse(diabetes$Insulin >= 140 & diabetes$Insulin <= 199, "Gizli Şeker", "Diyabet"))
+
+```
+
+
+**BMI Değişkeni**
+
+"18, 5 kg/m² ‘nin altındaki sonuçlar: İdeal kilonun altında
+18, 5 kg/m² ile 24, 9 kg/m² arasındaki sonuçlar: İdeal kiloda
+25 kg/m² ile 29, 9 kg/m² arasındaki sonuçlar: İdeal kilonun üstünde
+30 kg/m² ile 39, 9 kg/m² arasındaki sonuçlar: İdeal kilonun çok üstünde (obez)
+40 kg/m² üzerindeki sonuçlar: İdeal kilonun çok üstünde (morbid obez)" **[2]**
+
+BMI değerleri incelendiğinde, 18.5 altında kalan gözlemlerin, diğer kategorilerdeki gözlemlere göre oldukça az olduğu gözlenmiştir. Bu sebeple öncelikle BMI değeri 18.5'den düşük olan gözlemler incelenecektir.
+
+
+```{r}
+low_bmi_diabetes <- diabetes[diabetes$BMI <= 18.5, ]
+
+low_bmi_diabetes
+```
+
+
+Kontrol edildiği üzere yalnızca 1 gözlemin BMI sonucu 18.5'in altında yer almıştır. Bu durum, kategori oluşturma aşamasında çalışmayı iyi devam ettiremeyeceğinden ötürü bir üst kategori olan "İdeal" kategorisine dahil edilecektir.
+
+İdeal kategorsinin sınırları 18.5 - 24.9 olarak belirlenmişti. Alt sınıra olan yakınlığı sebebi ile gözlem silinmektense bu yöntemi uygulamak tercih edilmiştir.
+
+
+
+BMI değişkenini kategorik değişkene çevirmek için;
+
+```{r}
+diabetes$BMI <- ifelse(diabetes$BMI <= 24.9, "İdeal",
+                              ifelse(diabetes$BMI >= 25 & diabetes$BMI <= 29.9, "Kilolu",
+                                     ifelse(diabetes$BMI >= 30 & diabetes$BMI <= 39.9, "Obez",
+                                            "Morbid Obez")))
+
+```
+
+
+```{r}
+table(diabetes$BMI)
+```
+
+
+
+**Outcome Değişkeni**
+
+Kategorize etmek için;
+
+0: Diyabeti yok, 1: Diyabeti var
+
+
+```{r}
+diabetes$Outcome <- ifelse(diabetes$Outcome == 0, "Diyabeti Yok", "Diyabeti Var")
+```
+
+
+# **Uygulama**
+
+## **Nitel Değişkenlerin Frekans Analizi**
+
+* İnsülin değişkeni
+
+```{r}
+frekans_tablosu <- table(diabetes$Insulin)
+
+oranlar <- prop.table(frekans_tablosu)
+
+sonuc <- data.frame(Kategori = names(frekans_tablosu), Frekanslar = as.numeric(frekans_tablosu), Oranlar = as.numeric(oranlar))
+sonuc
+```
+
+```{r}
+library(plotly)
+
+cross <- as.data.frame(prop.table(table(diabetes$Insulin))) 
+colnames(cross)[1] <- "Insulin"
+plot_ly(cross, labels = ~Insulin, values = ~Freq, type = 'pie')%>% layout(title ='Diyabet Durumu')
+```
+
+
+
+* BMI değişkeni
+
+
+```{r}
+frekans_tablosu <- table(diabetes$BMI)
+
+oranlar <- prop.table(frekans_tablosu)
+
+sonuc <- data.frame(Kategori = names(frekans_tablosu), Frekanslar = as.numeric(frekans_tablosu), Oranlar = as.numeric(oranlar))
+sonuc
+```
+
+```{r}
+library(plotly)
+
+cross <- as.data.frame(prop.table(table(diabetes$BMI))) 
+colnames(cross)[1] <- "BMI"
+plot_ly(cross, labels = ~BMI, values = ~Freq, type = 'pie')%>% layout(title ='BMI Durumu')
+```
+
+
+
+* Outcome Değişkeni
+
+
+
+```{r}
+frekans_tablosu <- table(diabetes$Outcome)
+
+oranlar <- prop.table(frekans_tablosu)
+
+sonuc <- data.frame(Kategori = names(frekans_tablosu), Frekanslar = as.numeric(frekans_tablosu), Oranlar = as.numeric(oranlar))
+sonuc
+```
+
+
+```{r}
+library(plotly)
+
+cross <- as.data.frame(prop.table(table(diabetes$Outcome))) 
+colnames(cross)[1] <- "Outcome"
+plot_ly(cross, labels = ~Outcome, values = ~Freq, type = 'pie')%>% layout(title ='Çıktı')
+```
+
+
+
+
+
+# **Dönüşümlere Karar Verme**
+
+
+**Glucose Değişkeni**
+
+Histogramı incelenerek Logaritmik dönüşüm uygulamasına karar verilmiştir.
+
+**DiabetesPedigreeFunction Değişkeni**
+
+
+Histogramı incelenerek Logaritmik dönüşüm uygulamasına karar verilmiştir.
+
+
+**Age Değişkeni**
+
+
+Histogramı incelenerek Logaritmik dönüşüm uygulamasına karar verilmiştir.
+
+
+# **Dönüşüm**
+
+Glucose değişkeni için logaritmik dönüşüm,
+DiabetesPedigreeFunction değişkeni için logaritmik dönüşüm,
+Age değişkeni için logaritmik dönüşüm uygulanacaktır.
+
+```{r}
+diabetes$glucose_log <- log10(diabetes$Glucose)
+diabetes$diabetesPedigreeFunction_log <- log10(diabetes$DiabetesPedigreeFunction)
+diabetes$age_log <- log10(diabetes$Age)
+```
+
+
+Çıktılar SPSS'de incelenmiştir.
+
+
+# **Grafikler**
+
+## **Sürekli Değişkenlerin Histogram Grafikleri**
+
+
+**Glucose Değişkeni**
+
+```{r}
+library(ggplot2)
+```
+
+
+```{r}
+ggplot(diabetes, aes(glucose_log)) +
+  geom_histogram(aes(y=..density..), fill="seashell2", color="black", bins=30) +
+  geom_density(alpha=.4, fill="cadetblue3") +
+  theme_minimal() +
+  labs(title = "Glucose Degerleri")+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20))
+```
+
+
+**BloodPressure**
+
+```{r}
+ggplot(diabetes, aes(BloodPressure)) +
+  geom_histogram(aes(y=..density..), fill="seashell2", color="black", bins=30) +
+  geom_density(alpha=.4, fill="cadetblue3") +
+  theme_minimal() +
+  labs(title = "BloodPressure Degerleri")+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20))
+```
+
+
+**SkinThickness**
+
+```{r}
+ggplot(diabetes, aes(SkinThickness)) +
+  geom_histogram(aes(y=..density..), fill="seashell2", color="black", bins=30) +
+  geom_density(alpha=.4, fill="cadetblue3") +
+  theme_minimal() +
+  labs(title = "SkinThickness Degerleri")+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20))
+```
+
+
+**DiabetesPedigreeFunction**
+
+```{r}
+ggplot(diabetes, aes(diabetesPedigreeFunction_log)) +
+  geom_histogram(aes(y=..density..), fill="seashell2", color="black", bins=30) +
+  geom_density(alpha=.4, fill="cadetblue3") +
+  theme_minimal() +
+  labs(title = "DiabetesPedigreeFunction Degerleri")+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20))
+```
+
+
+**Age**
+
+```{r}
+ggplot(diabetes, aes(Age)) +
+  geom_histogram(aes(y=..density..), fill="seashell2", color="black", bins=30) +
+  geom_density(alpha=.4, fill="cadetblue3") +
+  theme_minimal() +
+  labs(title = "Age Degerleri")+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20))
+```
+
+```{r}
+hist(diabetes$Age)
+```
+
+
+
+
+## **Sürekli Değişkenlerin Kutu Grafikleri**
+
+
+**Glucose Değişkeni**
+
+
+```{r}
+boxplot(diabetes$glucose_log, col = "orange")
+title(main = "Glucose Kutu Grafigi", font.main = 2, cex.main = 2)
+```
+
+
+**BloodPressure Değişkeni**
+
+
+```{r}
+boxplot(diabetes$BloodPressure, main = "BloodPressure Kutu Grafiği", col="orange")
+```
+
+
+**SkinThickness Değişkeni**
+
+
+```{r}
+boxplot(diabetes$SkinThickness, main = "SkinThickness Kutu Grafiği", col="orange")
+```
+
+
+**DiabetesPedigreeFunction Değişkeni**
+
+
+```{r}
+boxplot(diabetes$diabetesPedigreeFunction_log, main = "DiabetesPedigreeFunction Kutu Grafiği", col="orange")
+```
+
+
+**Age Değişkeni**
+
+
+```{r}
+boxplot(diabetes$Age, main = "Age Kutu Grafiği", col="orange")
+```
+
+
+
+
+
+
+## **Sürekli Değişkenlerin Q-Q Grafikleri**
+
+
+**Glucose Değişkeni**
+
+
+```{r}
+qqnorm(diabetes$glucose_log, col = "darkblue", main = "Glucose QQ Plot", ylim = c(-3, 3))
+qqline(diabetes$glucose_log, col = "red")
+```
+
+
+**BloodPressure Değişkeni**
+
+
+```{r}
+qqnorm(diabetes$BloodPressure, col = "darkblue", main = "BloodPressure QQ Plot")
+qqline(diabetes$BloodPressure, col = "red")
+```
+
+
+**SkinThickness Değişkeni**
+
+
+```{r}
+qqnorm(diabetes$SkinThickness, col = "darkblue", main = "SkinThickness QQ Plot")
+qqline(diabetes$SkinThickness, col = "red")
+```
+
+
+**DiabetesPedigreeFunction Değişkeni**
+
+
+```{r}
+qqnorm(diabetes$diabetesPedigreeFunction_log, col = "darkblue", main = "DiabetesPedigreeFunction QQ Plot")
+qqline(diabetes$diabetesPedigreeFunction_log, col = "red")
+```
+
+
+**Age Değişkeni**
+
+
+```{r}
+qqnorm(diabetes$age_log, col = "darkblue", main = "Age QQ Plot")
+qqline(diabetes$age_log, col = "red")
+```
+
+
+
+
+## **Sürekli Değişkenlerin Korelasyonları**
+
+
+```{r}
+diabetes$Outcome <- ifelse(diabetes$Outcome == "Diyabeti Var", 1, 0)
+```
+
+
+```{r}
+library(PerformanceAnalytics)
+```
+
+**Glucose, BloodPressure, SkinThickness, DiabetesPedigreeFunction ve Age Değişkenleri**
+
+Glucose değişkenine dönüşüm uygulanıp normallik sağlanmıştı. Ancak glucose_log değişkeninde -Inf değerler söz konusu olduğu için Glucose değerlerine +1 eklenerek logaritması alınana yeni bir değişken oluşturuldu. Bu sayede -Inf olan değerler problem çıkartmayacaktır.
+
+```{r}
+diabetes$Glucose_plus <- log10(diabetes$Glucose + 1)  
+
+cor_diabetes <- diabetes[, c(3, 4, 11, 12, 13)]
+
+chart.Correlation(cor_diabetes, histogram = TRUE, pch = 19, method="pearson")
+```
+
+
+
